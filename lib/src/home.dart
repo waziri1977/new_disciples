@@ -2,31 +2,32 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart'
-as http;
+import 'package:http/http.dart' as http;
 
 import 'question.dart';
+import 'login.dart';
 
-class HomeScreen
-    extends StatefulWidget {
+class HomeScreen extends StatefulWidget {
 
   final Map userData;
 
   const HomeScreen({
-    super.key,
+    Key? key,
     required this.userData,
-  });
+  }) : super(key: key);
 
   @override
-  State<HomeScreen>
-  createState() =>
+  State<HomeScreen> createState() =>
       _HomeScreenState();
 }
 
 class _HomeScreenState
-    extends State<HomeScreen> {
+    extends State<HomeScreen>
+
+    with WidgetsBindingObserver {
 
   ////////////////////////////////////////////////////////////
   /// API
@@ -35,17 +36,28 @@ class _HomeScreenState
   final String apiUrl =
       "https://new-disciples.com/api/get_live_question.php";
 
+  final String disqualifyApi =
+      "https://new-disciples.com/api/disqualify_user.php";
+
+  final String logoutApi =
+      "https://new-disciples.com/api/logout.php";
+
+  final String verifyExamCodeApi =
+      "https://new-disciples.com/api/verify_exam_code.php";
+
   ////////////////////////////////////////////////////////////
   /// STATES
   ////////////////////////////////////////////////////////////
 
   bool isLoading = true;
 
-  bool isQuestionActive =
-  true;
+  bool isQuestionActive = false;
 
-  bool alreadyAnswered =
-  false;
+  bool alreadyAnswered = false;
+
+  bool disqualified = false;
+
+  bool verifyingCode = false;
 
   Map questionData = {};
 
@@ -53,6 +65,95 @@ class _HomeScreenState
       Duration.zero;
 
   Timer? timer;
+
+  ////////////////////////////////////////////////////////////
+  /// INIT
+  ////////////////////////////////////////////////////////////
+
+  @override
+  void initState() {
+
+    super.initState();
+
+    //////////////////////////////////////////////////////////
+    /// OBSERVER
+    //////////////////////////////////////////////////////////
+
+    WidgetsBinding.instance
+        .addObserver(this);
+
+    //////////////////////////////////////////////////////////
+    /// FETCH QUESTION
+    //////////////////////////////////////////////////////////
+
+    getLiveQuestion();
+  }
+
+  ////////////////////////////////////////////////////////////
+  /// DISPOSE
+  ////////////////////////////////////////////////////////////
+
+  @override
+  void dispose() {
+
+    timer?.cancel();
+
+    WidgetsBinding.instance
+        .removeObserver(this);
+
+    super.dispose();
+  }
+
+  ////////////////////////////////////////////////////////////
+  /// APP LIFECYCLE
+  ////////////////////////////////////////////////////////////
+
+  @override
+  void didChangeAppLifecycleState(
+
+      AppLifecycleState state
+
+      ){
+
+    //////////////////////////////////////////////////////////
+    /// APP MINIMIZED
+    //////////////////////////////////////////////////////////
+
+    if(
+
+    state ==
+        AppLifecycleState.paused
+
+        ||
+
+        state ==
+            AppLifecycleState.detached
+
+        ||
+
+        state ==
+            AppLifecycleState.inactive
+
+    ){
+
+      ////////////////////////////////////////////////////////
+      /// LIVE EXAM ONLY
+      ////////////////////////////////////////////////////////
+
+      if(
+
+      isQuestionActive
+          &&
+          !alreadyAnswered
+          &&
+          !disqualified
+
+      ){
+
+        disqualifyUser();
+      }
+    }
+  }
 
   ////////////////////////////////////////////////////////////
   /// GET LIVE QUESTION
@@ -75,8 +176,12 @@ class _HomeScreenState
       final data =
       jsonDecode(response.body);
 
-      if (data['status'] ==
-          true) {
+      ////////////////////////////////////////////////////////
+      /// SUCCESS
+      ////////////////////////////////////////////////////////
+
+      if (data['status']
+          == true) {
 
         setState(() {
 
@@ -84,23 +189,172 @@ class _HomeScreenState
           data['question'];
 
           alreadyAnswered =
-          questionData[
-          'already_answered'];
+              data['already_answered']
+                  ?? false;
 
-          isLoading = false;
+          isQuestionActive =
+          true;
+
+          isLoading =
+          false;
         });
 
+        //////////////////////////////////////////////////////
+        /// START TIMER
+        //////////////////////////////////////////////////////
+
         startCountdown(
-          questionData[
-          'end_time'],
+          questionData['end_time'],
         );
+
+      } else {
+
+        setState(() {
+
+          isQuestionActive =
+          false;
+
+          isLoading =
+          false;
+        });
       }
 
     } catch (e) {
 
       setState(() {
+
         isLoading = false;
       });
+
+      print(e);
+    }
+  }
+
+  ////////////////////////////////////////////////////////////
+  /// DISQUALIFY USER
+  ////////////////////////////////////////////////////////////
+
+  Future<void>
+  disqualifyUser() async {
+
+    //////////////////////////////////////////////////////////
+    /// PREVENT MULTIPLE CALLS
+    //////////////////////////////////////////////////////////
+
+    if(disqualified) return;
+
+    disqualified = true;
+
+    try {
+
+      await http.post(
+
+        Uri.parse(
+            disqualifyApi
+        ),
+
+        body: {
+
+          "user_id":
+
+          widget.userData['id']
+              .toString(),
+        },
+      );
+
+    } catch (e) {
+
+      print(e);
+    }
+
+    //////////////////////////////////////////////////////////
+    /// SHOW BLOCK
+    //////////////////////////////////////////////////////////
+
+    if(mounted){
+
+      showDialog(
+
+        context: context,
+
+        barrierDismissible: false,
+
+        builder: (_) {
+
+          return WillPopScope(
+
+            onWillPop: () async =>
+            false,
+
+            child: AlertDialog(
+
+              backgroundColor:
+              const Color(
+                  0xFF161B22),
+
+              shape:
+              RoundedRectangleBorder(
+
+                borderRadius:
+                BorderRadius.circular(
+                    24),
+              ),
+
+              title: const Text(
+
+                "Disqualified",
+
+                style: TextStyle(
+
+                  color: Colors.red,
+
+                  fontWeight:
+                  FontWeight.w900,
+                ),
+              ),
+
+              content: const Text(
+
+                "You minimized or exited the examination screen during a live examination.\n\nYou have been automatically disqualified for malpractice.",
+
+                style: TextStyle(
+
+                  color: Colors.white70,
+
+                  height: 1.7,
+                ),
+              ),
+
+              actions: [
+
+                ElevatedButton(
+
+                  style:
+                  ElevatedButton.styleFrom(
+
+                    backgroundColor:
+                    Colors.red,
+                  ),
+
+                  onPressed: () {
+
+                    exit(0);
+                  },
+
+                  child: const Text(
+
+                    "EXIT",
+
+                    style: TextStyle(
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
     }
   }
 
@@ -112,12 +366,11 @@ class _HomeScreenState
       String endTime) {
 
     DateTime endDate =
-    DateTime.parse(
-        endTime);
+    DateTime.parse(endTime);
 
     timer = Timer.periodic(
-      const Duration(
-          seconds: 1),
+
+      const Duration(seconds: 1),
 
           (timer) {
 
@@ -125,11 +378,13 @@ class _HomeScreenState
         DateTime.now();
 
         final difference =
-        endDate
-            .difference(now);
+        endDate.difference(now);
 
-        if (difference
-            .isNegative) {
+        //////////////////////////////////////////////////////
+        /// ENDED
+        //////////////////////////////////////////////////////
+
+        if (difference.isNegative) {
 
           timer.cancel();
 
@@ -148,9 +403,6 @@ class _HomeScreenState
 
             countdown =
                 difference;
-
-            isQuestionActive =
-            true;
           });
         }
       },
@@ -165,8 +417,7 @@ class _HomeScreenState
       Duration duration) {
 
     String twoDigits(int n) =>
-        n
-            .toString()
+        n.toString()
             .padLeft(2, '0');
 
     final hours =
@@ -174,31 +425,386 @@ class _HomeScreenState
         duration.inHours);
 
     final minutes =
-    twoDigits(duration
-        .inMinutes
-        .remainder(60));
+    twoDigits(
+        duration.inMinutes
+            .remainder(60));
 
     final seconds =
-    twoDigits(duration
-        .inSeconds
-        .remainder(60));
+    twoDigits(
+        duration.inSeconds
+            .remainder(60));
 
     return "$hours:$minutes:$seconds";
   }
 
-  @override
-  void initState() {
-    super.initState();
+  ////////////////////////////////////////////////////////////
+  /// OPEN QUESTION
+  ////////////////////////////////////////////////////////////
 
-    getLiveQuestion();
+  void openQuestion() {
+
+    final codeController =
+    TextEditingController();
+
+    showDialog(
+
+      context: context,
+
+      barrierDismissible: false,
+
+      builder: (_) {
+
+        return StatefulBuilder(
+
+          builder: (context,setModalState){
+
+            return AlertDialog(
+
+              backgroundColor:
+              const Color(
+                  0xFF161B22),
+
+              shape:
+              RoundedRectangleBorder(
+
+                borderRadius:
+                BorderRadius.circular(
+                    24),
+              ),
+
+              title: const Text(
+
+                "Exam Verification",
+
+                style: TextStyle(
+
+                  color: Colors.white,
+
+                  fontWeight:
+                  FontWeight.w900,
+                ),
+              ),
+
+              content: Column(
+
+                mainAxisSize:
+                MainAxisSize.min,
+
+                children: [
+
+                  const Text(
+
+                    "Enter the examination verification code before proceeding.",
+
+                    style: TextStyle(
+
+                      color:
+                      Colors.white70,
+
+                      height: 1.7,
+                    ),
+                  ),
+
+                  const SizedBox(
+                      height: 20),
+
+                  TextField(
+
+                    controller:
+                    codeController,
+
+                    style:
+                    const TextStyle(
+
+                      color:
+                      Colors.white,
+                    ),
+
+                    decoration:
+                    InputDecoration(
+
+                      hintText:
+                      "Enter Exam Code",
+
+                      hintStyle:
+                      const TextStyle(
+
+                        color:
+                        Colors.white38,
+                      ),
+
+                      filled: true,
+
+                      fillColor:
+                      const Color(
+                          0xFF0F172A),
+
+                      border:
+                      OutlineInputBorder(
+
+                        borderRadius:
+                        BorderRadius.circular(
+                            18),
+
+                        borderSide:
+                        BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              actions: [
+
+                TextButton(
+
+                  onPressed: () {
+
+                    Navigator.pop(
+                        context);
+                  },
+
+                  child: const Text(
+
+                    "Cancel",
+
+                    style: TextStyle(
+                      color:
+                      Colors.white54,
+                    ),
+                  ),
+                ),
+
+                ElevatedButton(
+
+                  style:
+                  ElevatedButton.styleFrom(
+
+                    backgroundColor:
+                    const Color(
+                        0xFFFFC107),
+                  ),
+
+                  onPressed:
+                  verifyingCode
+
+                      ? null
+
+                      : () async {
+
+                    setModalState(() {
+
+                      verifyingCode =
+                      true;
+                    });
+
+                    //////////////////////////////////////////////////
+                    /// VERIFY CODE
+                    //////////////////////////////////////////////////
+
+                    try {
+
+                      final response =
+                      await http.post(
+
+                        Uri.parse(
+                            verifyExamCodeApi
+                        ),
+
+                        body: {
+
+                          "contestant_id":
+
+                          widget.userData['id']
+                              .toString(),
+
+                          "question_id":
+
+                          questionData['id']
+                              .toString(),
+
+                          "exam_code":
+
+                          codeController.text
+                              .trim(),
+                        },
+                      );
+
+                      final data =
+                      jsonDecode(
+                          response.body
+                      );
+
+                      //////////////////////////////////////////////////
+                      /// SUCCESS
+                      //////////////////////////////////////////////////
+
+                      if(
+
+                      data['status']
+                          == true
+
+                      ){
+
+                        Navigator.pop(
+                            context);
+
+                        Navigator.push(
+
+                          context,
+
+                          MaterialPageRoute(
+
+                            builder: (_) =>
+                                QuestionScreen(
+
+                                  userData:
+                                  widget.userData,
+
+                                  questionData:
+                                  questionData,
+                                ),
+                          ),
+                        ).then((_) {
+
+                          //////////////////////////////////////////////////
+                          /// REFRESH
+                          //////////////////////////////////////////////////
+
+                          getLiveQuestion();
+                        });
+
+                      } else {
+
+                        ScaffoldMessenger.of(
+                            context)
+
+                            .showSnackBar(
+
+                          SnackBar(
+
+                            backgroundColor:
+                            Colors.red,
+
+                            content: Text(
+
+                              data['message'],
+
+                              style:
+                              const TextStyle(
+
+                                color:
+                                Colors.white,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                    } catch (e) {
+
+                      print(e);
+
+                    } finally {
+
+                      setModalState(() {
+
+                        verifyingCode =
+                        false;
+                      });
+                    }
+                  },
+
+                  child:
+
+                  verifyingCode
+
+                      ? const SizedBox(
+
+                    width: 20,
+                    height: 20,
+
+                    child:
+                    CircularProgressIndicator(
+
+                      strokeWidth: 2,
+
+                      color:
+                      Colors.black,
+                    ),
+                  )
+
+                      : const Text(
+
+                    "VERIFY",
+
+                    style: TextStyle(
+
+                      color:
+                      Colors.black,
+
+                      fontWeight:
+                      FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
-  @override
-  void dispose() {
+  ////////////////////////////////////////////////////////////
+  /// LOGOUT
+  ////////////////////////////////////////////////////////////
 
-    timer?.cancel();
+  Future<void> logout() async {
 
-    super.dispose();
+    try {
+
+      ////////////////////////////////////////////////////////
+      /// UPDATE LOGIN STATUS
+      ////////////////////////////////////////////////////////
+
+      await http.post(
+
+        Uri.parse(logoutApi),
+
+        body: {
+
+          "user_id":
+
+          widget.userData['id']
+              .toString(),
+        },
+      );
+
+    } catch (e) {
+
+      print(e);
+    }
+
+    //////////////////////////////////////////////////////////
+    /// GO TO LOGIN
+    //////////////////////////////////////////////////////////
+
+    if(mounted){
+
+      Navigator.pushAndRemoveUntil(
+
+        context,
+
+        MaterialPageRoute(
+
+          builder: (_) =>
+          const LoginScreen(),
+        ),
+
+            (route) => false,
+      );
+    }
   }
 
   ////////////////////////////////////////////////////////////
@@ -210,28 +816,74 @@ class _HomeScreenState
       BuildContext context) {
 
     return Scaffold(
+
       backgroundColor:
       const Color(
           0xFF070B14),
 
+      //////////////////////////////////////////////////////////
+      /// APP BAR
+      //////////////////////////////////////////////////////////
+
+      appBar: AppBar(
+
+        backgroundColor:
+        Colors.transparent,
+
+        elevation: 0,
+
+        title: const Text(
+
+          "New Disciples",
+
+          style: TextStyle(
+
+            fontWeight:
+            FontWeight.w900,
+          ),
+        ),
+
+        actions: [
+
+          IconButton(
+
+            onPressed: logout,
+
+            icon: const Icon(
+              Icons.logout,
+            ),
+          ),
+        ],
+      ),
+
+      //////////////////////////////////////////////////////////
+      /// BODY
+      //////////////////////////////////////////////////////////
+
       body: isLoading
 
           ? const Center(
+
         child:
         CircularProgressIndicator(
-          color: Color(
+
+          color:
+          Color(
               0xFFFFC107),
         ),
       )
 
           : SafeArea(
+
         child:
         SingleChildScrollView(
+
           padding:
-          const EdgeInsets
-              .all(24),
+          const EdgeInsets.all(
+              24),
 
           child: Column(
+
             crossAxisAlignment:
             CrossAxisAlignment
                 .start,
@@ -239,119 +891,69 @@ class _HomeScreenState
             children: [
 
               //////////////////////////////////////////////////
-              /// HEADER
+              /// USER
               //////////////////////////////////////////////////
 
-              Row(
-                mainAxisAlignment:
-                MainAxisAlignment
-                    .spaceBetween,
+              Text(
 
-                children: [
+                "Welcome, ${widget.userData['full_name']}",
 
-                  Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
+                style:
+                const TextStyle(
 
-                    children: [
+                  color:
+                  Colors.white,
 
-                      const Text(
-                        "Welcome Back 👋",
+                  fontSize: 28,
 
-                        style:
-                        TextStyle(
-                          color:
-                          Colors
-                              .white54,
-                        ),
-                      ),
-
-                      const SizedBox(
-                          height:
-                          6),
-
-                      Text(
-                        widget.userData[
-                        'full_name']
-                            ?.toString() ??
-                            "Contestant",
-
-                        style:
-                        const TextStyle(
-                          color:
-                          Colors
-                              .white,
-
-                          fontSize:
-                          28,
-
-                          fontWeight:
-                          FontWeight
-                              .w900,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  //////////////////////////////////////////////////
-                  /// NOTIFICATION
-                  //////////////////////////////////////////////////
-
-                  Container(
-                    padding:
-                    const EdgeInsets
-                        .all(
-                        14),
-
-                    decoration:
-                    BoxDecoration(
-                      color:
-                      const Color(
-                          0xFF161B22),
-
-                      borderRadius:
-                      BorderRadius.circular(
-                          18),
-                    ),
-
-                    child:
-                    const Icon(
-                      Icons
-                          .notifications_none,
-
-                      color:
-                      Colors
-                          .white,
-                    ),
-                  ),
-                ],
+                  fontWeight:
+                  FontWeight.w900,
+                ),
               ),
 
               const SizedBox(
-                  height:
-                  35),
+                  height: 10),
+
+              const Text(
+
+                "Prepare for your live examination session.",
+
+                style: TextStyle(
+
+                  color:
+                  Colors.white54,
+
+                  height: 1.7,
+                ),
+              ),
+
+              const SizedBox(
+                  height: 35),
 
               //////////////////////////////////////////////////
-              /// LIVE QUESTION CARD
+              /// QUESTION CARD
               //////////////////////////////////////////////////
 
               Container(
+
                 width:
                 double.infinity,
 
                 padding:
-                const EdgeInsets
-                    .all(
-                    26),
+                const EdgeInsets.all(
+                    28),
 
                 decoration:
                 BoxDecoration(
+
                   gradient:
                   const LinearGradient(
+
                     colors: [
+
                       Color(
                           0xFFFFC107),
+
                       Color(
                           0xFFFFB300),
                     ],
@@ -359,24 +961,11 @@ class _HomeScreenState
 
                   borderRadius:
                   BorderRadius.circular(
-                      34),
-
-                  boxShadow: [
-
-                    BoxShadow(
-                      color: const Color(
-                          0xFFFFC107)
-                          .withOpacity(
-                          0.35),
-
-                      blurRadius:
-                      35,
-                    ),
-                  ],
+                      35),
                 ),
 
-                child:
-                Column(
+                child: Column(
+
                   crossAxisAlignment:
                   CrossAxisAlignment
                       .start,
@@ -384,18 +973,18 @@ class _HomeScreenState
                   children: [
 
                     //////////////////////////////////////////////////
-                    /// STATUS ROW
+                    /// STATUS
                     //////////////////////////////////////////////////
 
                     Row(
+
                       children: [
 
                         Icon(
-                          Icons
-                              .circle,
 
-                          size:
-                          12,
+                          Icons.circle,
+
+                          size: 12,
 
                           color:
 
@@ -407,19 +996,19 @@ class _HomeScreenState
                         ),
 
                         const SizedBox(
-                            width:
-                            8),
+                            width: 8),
 
                         Text(
 
                           isQuestionActive
 
-                              ? "QUESTION ACTIVE"
+                              ? "LIVE QUESTION"
 
-                              : "QUESTION CLOSED",
+                              : "NO LIVE QUESTION",
 
                           style:
                           const TextStyle(
+
                             color:
                             Colors.black,
 
@@ -434,83 +1023,72 @@ class _HomeScreenState
                         /// TIMER
                         //////////////////////////////////////////////////
 
-                        Row(
-                          children: [
+                        if(
+                        isQuestionActive
+                        )
 
-                            const Icon(
-                              Icons.timer,
+                          Row(
 
-                              color:
-                              Colors.black,
-                            ),
+                            children: [
 
-                            const SizedBox(
-                                width:
-                                6),
+                              const Icon(
 
-                            Text(
-                              formatTime(
-                                  countdown),
+                                Icons.timer,
 
-                              style:
-                              const TextStyle(
                                 color:
                                 Colors.black,
-
-                                fontWeight:
-                                FontWeight.w900,
                               ),
-                            ),
-                          ],
-                        ),
+
+                              const SizedBox(
+                                  width:
+                                  6),
+
+                              Text(
+
+                                formatTime(
+                                    countdown),
+
+                                style:
+                                const TextStyle(
+
+                                  color:
+                                  Colors.black,
+
+                                  fontWeight:
+                                  FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
 
                     const SizedBox(
-                        height:
-                        30),
+                        height: 30),
 
                     //////////////////////////////////////////////////
                     /// QUESTION
                     //////////////////////////////////////////////////
 
-                    const Text(
-                      "ACTIVE QUESTION",
-
-                      style:
-                      TextStyle(
-                        color: Colors
-                            .black54,
-
-                        fontWeight:
-                        FontWeight
-                            .w700,
-
-                        letterSpacing:
-                        1.2,
-                      ),
-                    ),
-
-                    const SizedBox(
-                        height:
-                        12),
-
                     Text(
-                      questionData[
+
+                      isQuestionActive
+
+                          ? questionData[
                       'question']
-                          ?.toString() ??
-                          "",
+
+                          : "No active question currently.",
 
                       style:
                       const TextStyle(
+
                         color:
                         Colors.black,
 
                         fontSize:
-                        30,
+                        28,
 
-                        height:
-                        1.2,
+                        height: 1.2,
 
                         fontWeight:
                         FontWeight.w900,
@@ -518,271 +1096,109 @@ class _HomeScreenState
                     ),
 
                     const SizedBox(
-                        height:
-                        18),
-
-                    //////////////////////////////////////////////////
-                    /// DESCRIPTION
-                    //////////////////////////////////////////////////
-
-                    Text(
-                      questionData[
-                      'description']
-                          ?.toString() ??
-                          "",
-
-                      style:
-                      const TextStyle(
-                        color:
-                        Colors.black87,
-
-                        fontSize:
-                        15,
-
-                        height:
-                        1.7,
-                      ),
-                    ),
-
-                    const SizedBox(
-                        height:
-                        28),
-
-                    //////////////////////////////////////////////////
-                    /// SUBMISSION STATUS
-                    //////////////////////////////////////////////////
-
-                    Container(
-                      padding:
-                      const EdgeInsets
-                          .all(
-                          18),
-
-                      decoration:
-                      BoxDecoration(
-                        color: Colors
-                            .black
-                            .withOpacity(
-                            0.08),
-
-                        borderRadius:
-                        BorderRadius
-                            .circular(
-                            22),
-                      ),
-
-                      child: Row(
-                        children: [
-
-                          Container(
-                            height:
-                            55,
-
-                            width:
-                            55,
-
-                            decoration:
-                            const BoxDecoration(
-                              color: Colors
-                                  .black,
-
-                              shape:
-                              BoxShape.circle,
-                            ),
-
-                            child:
-                            Icon(
-
-                              alreadyAnswered
-
-                                  ? Icons.check_circle
-
-                                  : Icons.edit_note,
-
-                              color:
-                              const Color(
-                                  0xFFFFC107),
-
-                              size:
-                              28,
-                            ),
-                          ),
-
-                          const SizedBox(
-                              width:
-                              18),
-
-                          Expanded(
-                            child:
-                            Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-
-                              children: [
-
-                                const Text(
-                                  "Submission Status",
-
-                                  style:
-                                  TextStyle(
-                                    color:
-                                    Colors.black54,
-
-                                    fontWeight:
-                                    FontWeight.w600,
-                                  ),
-                                ),
-
-                                const SizedBox(
-                                    height:
-                                    6),
-
-                                Text(
-
-                                  alreadyAnswered
-
-                                      ? "Answer Submitted Successfully"
-
-                                      : "You have not submitted your answer yet.",
-
-                                  style:
-                                  const TextStyle(
-                                    color:
-                                    Colors.black,
-
-                                    fontWeight:
-                                    FontWeight.w800,
-
-                                    fontSize:
-                                    15,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(
-                        height:
-                        32),
+                        height: 20),
 
                     //////////////////////////////////////////////////
                     /// BUTTON
                     //////////////////////////////////////////////////
 
-                    SizedBox(
-                      width:
-                      double.infinity,
+                    if(
+                    isQuestionActive
+                        &&
+                        !alreadyAnswered
+                    )
 
-                      height:
-                      62,
+                      SizedBox(
 
-                      child:
-                      ElevatedButton(
-                        style:
-                        ElevatedButton.styleFrom(
+                        width:
+                        double.infinity,
 
-                          backgroundColor:
-
-                          alreadyAnswered
-
-                              ? Colors.green
-
-                              : isQuestionActive
-
-                              ? Colors.black
-
-                              : Colors.grey.shade700,
-
-                          shape:
-                          RoundedRectangleBorder(
-                            borderRadius:
-                            BorderRadius.circular(
-                                22),
-                          ),
-                        ),
-
-                        onPressed:
-
-                        isQuestionActive &&
-                            !alreadyAnswered
-
-                            ? () {
-
-                          Navigator.push(
-                            context,
-
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  QuestionScreen(
-                                    userData:
-                                    widget.userData,
-
-                                    questionData:
-                                    questionData,
-                                  ),
-                            ),
-                          );
-                        }
-
-                            : null,
+                        height: 60,
 
                         child:
-                        Row(
-                          mainAxisAlignment:
-                          MainAxisAlignment.center,
+                        ElevatedButton(
 
-                          children: [
+                          style:
+                          ElevatedButton.styleFrom(
 
-                            Icon(
+                            backgroundColor:
+                            Colors.black,
 
-                              alreadyAnswered
+                            shape:
+                            RoundedRectangleBorder(
 
-                                  ? Icons.check_circle
+                              borderRadius:
+                              BorderRadius.circular(
+                                  18),
+                            ),
+                          ),
 
-                                  : isQuestionActive
+                          onPressed:
+                          openQuestion,
 
-                                  ? Icons.edit
+                          child:
+                          const Text(
 
-                                  : Icons.lock_clock,
+                            "START EXAMINATION",
+
+                            style:
+                            TextStyle(
 
                               color:
-                              const Color(
-                                  0xFFFFC107),
+                              Colors.white,
+
+                              fontWeight:
+                              FontWeight.w900,
+
+                              fontSize:
+                              16,
                             ),
-
-                            const SizedBox(
-                                width:
-                                10),
-
-                            Text(
-
-                              alreadyAnswered
-
-                                  ? "ANSWER SUBMITTED"
-
-                                  : isQuestionActive
-
-                                  ? "WRITE YOUR ANSWER"
-
-                                  : "QUESTION CLOSED",
-
-                              style:
-                              const TextStyle(
-                                color:
-                                Color(
-                                    0xFFFFC107),
-
-                                fontWeight:
-                                FontWeight.w900,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
+
+                    //////////////////////////////////////////////////
+                    /// ALREADY ANSWERED
+                    //////////////////////////////////////////////////
+
+                    if(alreadyAnswered)
+
+                      Container(
+
+                        padding:
+                        const EdgeInsets
+                            .all(18),
+
+                        decoration:
+                        BoxDecoration(
+
+                          color:
+                          Colors.black,
+
+                          borderRadius:
+                          BorderRadius.circular(
+                              18),
+                        ),
+
+                        child:
+                        const Center(
+
+                          child: Text(
+
+                            "You have already submitted your answer.",
+
+                            style:
+                            TextStyle(
+
+                              color:
+                              Colors.white,
+
+                              fontWeight:
+                              FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
