@@ -315,7 +315,7 @@ class _HomeScreenState
 
               content: const Text(
 
-                "You minimized or exited the examination screen during a live examination.\n\nYou have been automatically disqualified for malpractice.",
+                "You minimized or exited the mock screen during a live session.\n\nYou have been automatically disqualified for malpractice.",
 
                 style: TextStyle(
 
@@ -494,7 +494,7 @@ class _HomeScreenState
 
                   const Text(
 
-                    "Enter the examination verification code before proceeding.",
+                    "Enter the mock verification code before proceeding.",
 
                     style: TextStyle(
 
@@ -916,7 +916,7 @@ class _HomeScreenState
 
               const Text(
 
-                "Prepare for your live examination session.",
+                "Prepare for your live mock session.",
 
                 style: TextStyle(
 
@@ -1139,7 +1139,7 @@ class _HomeScreenState
                           child:
                           const Text(
 
-                            "START EXAMINATION",
+                            "START MOCK",
 
                             style:
                             TextStyle(
