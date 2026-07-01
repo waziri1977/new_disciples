@@ -1,4 +1,4 @@
-package com.example.new_disciples
+package com.emirateexpress.disciples
 
 import io.flutter.embedding.android.FlutterActivity
 

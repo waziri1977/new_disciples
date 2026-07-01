@@ -2,8 +2,11 @@
     <uses-permission android:name="android.permission.camera"/>
     <uses-permission android:name="android.permission.read_external_storage"/>
     <uses-permission android:name="android.permission.write_external_storage"/>
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
-        android:label="new_disciples"
+        android:label="new disciples"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
