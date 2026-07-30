@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 
 import 'home.dart';
 import 'votes.dart';
+import 'readiness_profile.dart';
+import 'readiness_leaderboard.dart';
 import 'profile.dart';
 
-class ContestantDashboard
-    extends StatefulWidget {
-
+class ContestantDashboard extends StatefulWidget {
   final Map userData;
 
   const ContestantDashboard({
@@ -17,33 +17,37 @@ class ContestantDashboard
   });
 
   @override
-  State<ContestantDashboard>
-  createState() =>
+  State<ContestantDashboard> createState() =>
       _ContestantDashboardState();
 }
 
-class _ContestantDashboardState
-    extends State<ContestantDashboard> {
-
+class _ContestantDashboardState extends State<ContestantDashboard> {
   int currentIndex = 0;
 
-  late List<Widget> pages;
+  late final List<Widget> pages;
 
   @override
   void initState() {
     super.initState();
 
     //////////////////////////////////////////////////////////
-    /// REMOVE QUESTION PAGE
+    /// DASHBOARD PAGES
     //////////////////////////////////////////////////////////
 
     pages = [
-
       HomeScreen(
         userData: widget.userData,
       ),
 
       VotesScreen(
+        userData: widget.userData,
+      ),
+
+      ReadinessProfileScreen(
+        userData: widget.userData,
+      ),
+
+      ReadinessLeaderboardScreen(
         userData: widget.userData,
       ),
 
@@ -53,105 +57,152 @@ class _ContestantDashboardState
     ];
   }
 
+  ////////////////////////////////////////////////////////////
+  /// CHANGE ACTIVE PAGE
+  ////////////////////////////////////////////////////////////
+
+  void changePage(int index) {
+    if (index < 0 || index >= pages.length) {
+      return;
+    }
+
+    setState(() {
+      currentIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-      backgroundColor:
-      const Color(0xFF070B14),
-
-      body: pages[currentIndex],
+      backgroundColor: const Color(0xFF070B14),
 
       ////////////////////////////////////////////////////////
-      /// PREMIUM BOTTOM NAV
+      /// KEEP PAGE STATE ALIVE
       ////////////////////////////////////////////////////////
 
-      bottomNavigationBar:
-      Container(
-        margin:
-        const EdgeInsets.all(
-            18),
+      body: IndexedStack(
+        index: currentIndex,
+        children: pages,
+      ),
 
-        decoration: BoxDecoration(
-          color:
-          const Color(
-              0xFF161B22),
+      ////////////////////////////////////////////////////////
+      /// PREMIUM BOTTOM NAVIGATION
+      ////////////////////////////////////////////////////////
 
-          borderRadius:
-          BorderRadius.circular(
-              24),
-
-          boxShadow: [
-
-            BoxShadow(
-              color: Colors.black
-                  .withOpacity(0.3),
-
-              blurRadius: 20,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(
+            18,
+            8,
+            18,
+            18,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFF161B22),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.05),
             ),
-          ],
-        ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.35),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BottomNavigationBar(
+              currentIndex: currentIndex,
+              backgroundColor: const Color(0xFF161B22),
+              elevation: 0,
+              selectedItemColor: const Color(0xFFFFC107),
+              unselectedItemColor: Colors.white38,
+              selectedFontSize: 12,
+              unselectedFontSize: 11,
+              selectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w800,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+              ),
+              type: BottomNavigationBarType.fixed,
+              onTap: changePage,
+              items: const [
+                ////////////////////////////////////////////////////
+                /// HOME
+                ////////////////////////////////////////////////////
 
-        child: BottomNavigationBar(
-          currentIndex:
-          currentIndex,
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.home_outlined,
+                  ),
+                  activeIcon: Icon(
+                    Icons.home_rounded,
+                  ),
+                  label: "Home",
+                ),
 
-          backgroundColor:
-          Colors.transparent,
+                ////////////////////////////////////////////////////
+                /// VOTES
+                ////////////////////////////////////////////////////
 
-          elevation: 0,
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.how_to_vote_outlined,
+                  ),
+                  activeIcon: Icon(
+                    Icons.how_to_vote_rounded,
+                  ),
+                  label: "Votes",
+                ),
 
-          selectedItemColor:
-          const Color(
-              0xFFFFC107),
+                ////////////////////////////////////////////////////
+                /// READINESS
+                ////////////////////////////////////////////////////
 
-          unselectedItemColor:
-          Colors.white38,
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.insights_outlined,
+                  ),
+                  activeIcon: Icon(
+                    Icons.insights_rounded,
+                  ),
+                  label: "Readiness",
+                ),
 
-          type:
-          BottomNavigationBarType
-              .fixed,
+                ////////////////////////////////////////////////////
+                /// LEADERBOARD
+                ////////////////////////////////////////////////////
 
-          onTap: (index) {
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.leaderboard_outlined,
+                  ),
+                  activeIcon: Icon(
+                    Icons.leaderboard_rounded,
+                  ),
+                  label: "Ranks",
+                ),
 
-            setState(() {
-              currentIndex =
-                  index;
-            });
-          },
+                ////////////////////////////////////////////////////
+                /// PROFILE
+                ////////////////////////////////////////////////////
 
-          items: const [
-
-            ////////////////////////////////////////////////////
-            /// HOME
-            ////////////////////////////////////////////////////
-
-            BottomNavigationBarItem(
-              icon: Icon(
-                  Icons.home),
-              label: "Home",
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.person_outline_rounded,
+                  ),
+                  activeIcon: Icon(
+                    Icons.person_rounded,
+                  ),
+                  label: "Profile",
+                ),
+              ],
             ),
-
-            ////////////////////////////////////////////////////
-            /// VOTES
-            ////////////////////////////////////////////////////
-
-            BottomNavigationBarItem(
-              icon: Icon(Icons
-                  .how_to_vote),
-              label: "Votes",
-            ),
-
-            ////////////////////////////////////////////////////
-            /// PROFILE
-            ////////////////////////////////////////////////////
-
-            BottomNavigationBarItem(
-              icon:
-              Icon(Icons.person),
-              label: "Profile",
-            ),
-          ],
+          ),
         ),
       ),
     );
