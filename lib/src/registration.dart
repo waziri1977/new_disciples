@@ -78,10 +78,6 @@ class _RegistrationScreenState
             .trim()
             .isEmpty ||
 
-        phoneController.text
-            .trim()
-            .isEmpty ||
-
         passwordController.text
             .trim()
             .isEmpty ||
@@ -104,20 +100,18 @@ class _RegistrationScreenState
     /// PHONE VALIDATION
     //////////////////////////////////////////////////////////
 
-    if(
+    String phone = phoneController.text.trim();
 
-    !RegExp(r'^[0-9]+$')
-        .hasMatch(
-        phoneController.text
-            .trim())
+    if (phone.isNotEmpty) {
+      if (!RegExp(r'^[0-9]+$').hasMatch(phone)) {
+        showMessage("Phone must contain numbers only");
+        return;
+      }
 
-    ){
-
-      showMessage(
-        "Phone must be numeric only",
-      );
-
-      return;
+      if (phone.length < 11 || phone.length > 15) {
+        showMessage("Please enter a valid phone number");
+        return;
+      }
     }
 
     //////////////////////////////////////////////////////////
@@ -982,7 +976,7 @@ class _RegistrationScreenState
 
         const Text(
 
-          "Phone Number",
+          "Phone Number (Optional)",
 
           style:
           TextStyle(

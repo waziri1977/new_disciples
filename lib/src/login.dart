@@ -87,21 +87,7 @@ class _LoginScreenState
     /// PHONE VALIDATION
     //////////////////////////////////////////////////////////
 
-    if(
 
-    !RegExp(r'^[0-9]+$')
-        .hasMatch(
-        phoneController.text
-            .trim())
-
-    ){
-
-      showMessage(
-        "Phone must be numeric only",
-      );
-
-      return;
-    }
 
     setState(() {
       isLoading = true;
@@ -686,10 +672,10 @@ class _LoginScreenState
                     buildInputField(
 
                       title:
-                      "Phone Number",
+                      "Email or Phone Number",
 
                       hint:
-                      "Enter your phone number",
+                      "Enter your email or phone no.",
 
                       icon:
                       Icons.phone_android_outlined,
@@ -698,7 +684,7 @@ class _LoginScreenState
                       phoneController,
 
                       keyboardType:
-                      TextInputType.number,
+                      TextInputType.text,
                     ),
 
                     const SizedBox(
