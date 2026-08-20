@@ -1,9 +1,10 @@
-// main.dart
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'src/login.dart';
 import 'src/registration.dart';
+import 'services/app_update_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +13,7 @@ void main() {
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
     ),
   );
 
@@ -29,11 +31,15 @@ class NewDisciplesApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: "New Disciples",
+      title: 'New Disciples',
       theme: ThemeData(
-        fontFamily: "Poppins",
+        fontFamily: 'Poppins',
         scaffoldBackgroundColor: const Color(0xFF070B14),
         brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFFFC107),
+          brightness: Brightness.dark,
+        ),
       ),
       home: const SplashScreen(),
     );
@@ -61,6 +67,8 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _textOpacity;
   late Animation<double> _glowAnimation;
 
+  bool _startupRunning = false;
+
   @override
   void initState() {
     super.initState();
@@ -86,7 +94,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _logoScale = Tween<double>(
       begin: 0.4,
-      end: 1,
+      end: 1.0,
     ).animate(
       CurvedAnimation(
         parent: _logoController,
@@ -95,8 +103,8 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _textOpacity = Tween<double>(
-      begin: 0,
-      end: 1,
+      begin: 0.0,
+      end: 1.0,
     ).animate(
       CurvedAnimation(
         parent: _textController,
@@ -105,24 +113,71 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _glowAnimation = Tween<double>(
-      begin: 15,
-      end: 35,
+      begin: 15.0,
+      end: 35.0,
     ).animate(_glowController);
 
     _logoController.forward();
     _textController.forward();
 
     //////////////////////////////////////////////////////////
-    /// NAVIGATION
+    /// START APPLICATION
     //////////////////////////////////////////////////////////
 
-    Future.delayed(const Duration(seconds: 4), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startApplication();
+    });
+  }
+
+  ////////////////////////////////////////////////////////////
+  /// CHECK UPDATE AND CONTINUE
+  ////////////////////////////////////////////////////////////
+
+  Future<void> _startApplication() async {
+    if (_startupRunning) return;
+
+    _startupRunning = true;
+
+    try {
+      ////////////////////////////////////////////////////////
+      /// CHECK GOOGLE PLAY UPDATE
+      ////////////////////////////////////////////////////////
+
+      if (mounted && !kIsWeb) {
+        await AppUpdateService.checkForUpdate(context);
+      }
+
+      ////////////////////////////////////////////////////////
+      /// KEEP SPLASH VISIBLE
+      ////////////////////////////////////////////////////////
+
+      await Future.delayed(
+        const Duration(seconds: 4),
+      );
+
+      if (!mounted) return;
+
+      ////////////////////////////////////////////////////////
+      /// OPEN WELCOME SCREEN
+      ////////////////////////////////////////////////////////
+
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 900),
-          pageBuilder: (_, __, ___) => const WelcomeScreen(),
-          transitionsBuilder: (_, animation, __, child) {
+          pageBuilder: (
+              context,
+              animation,
+              secondaryAnimation,
+              ) {
+            return const WelcomeScreen();
+          },
+          transitionsBuilder: (
+              context,
+              animation,
+              secondaryAnimation,
+              child,
+              ) {
             return FadeTransition(
               opacity: animation,
               child: child,
@@ -130,7 +185,28 @@ class _SplashScreenState extends State<SplashScreen>
           },
         ),
       );
-    });
+    } catch (e) {
+      debugPrint(
+        'Application startup error: $e',
+      );
+
+      ////////////////////////////////////////////////////////
+      /// NEVER BLOCK APP BECAUSE UPDATE CHECK FAILED
+      ////////////////////////////////////////////////////////
+
+      await Future.delayed(
+        const Duration(seconds: 2),
+      );
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const WelcomeScreen(),
+        ),
+      );
+    }
   }
 
   @override
@@ -138,6 +214,7 @@ class _SplashScreenState extends State<SplashScreen>
     _logoController.dispose();
     _textController.dispose();
     _glowController.dispose();
+
     super.dispose();
   }
 
@@ -149,6 +226,7 @@ class _SplashScreenState extends State<SplashScreen>
         builder: (context, child) {
           return Container(
             width: double.infinity,
+            height: double.infinity,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -163,7 +241,7 @@ class _SplashScreenState extends State<SplashScreen>
             child: Stack(
               children: [
                 ////////////////////////////////////////////////////////
-                /// BACKGROUND CIRCLES
+                /// TOP BACKGROUND CIRCLE
                 ////////////////////////////////////////////////////////
 
                 Positioned(
@@ -179,6 +257,10 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
 
+                ////////////////////////////////////////////////////////
+                /// BOTTOM BACKGROUND CIRCLE
+                ////////////////////////////////////////////////////////
+
                 Positioned(
                   bottom: -120,
                   left: -50,
@@ -193,107 +275,127 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
 
                 ////////////////////////////////////////////////////////
-                /// CONTENT
+                /// SPLASH CONTENT
                 ////////////////////////////////////////////////////////
 
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ////////////////////////////////////////////////////
-                      /// LOGO
-                      ////////////////////////////////////////////////////
+                SafeArea(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        //////////////////////////////////////////////////
+                        /// LOGO
+                        //////////////////////////////////////////////////
 
-                      ScaleTransition(
-                        scale: _logoScale,
-                        child: Container(
-                          height: 165,
-                          width: 165,
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(45),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.35),
-                                blurRadius: _glowAnimation.value,
-                                spreadRadius: 2,
-                                offset: const Offset(0, 20),
+                        ScaleTransition(
+                          scale: _logoScale,
+                          child: Container(
+                            height: 165,
+                            width: 165,
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(45),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.35),
+                                  blurRadius: _glowAnimation.value,
+                                  spreadRadius: 2,
+                                  offset: const Offset(0, 20),
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(15),
+                              child: Image.asset(
+                                'assets/icon/icon.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (
+                                    context,
+                                    error,
+                                    stackTrace,
+                                    ) {
+                                  return const Center(
+                                    child: Icon(
+                                      Icons.auto_awesome,
+                                      size: 70,
+                                      color: Color(0xFFFFC107),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 45),
+
+                        //////////////////////////////////////////////////
+                        /// APP NAME
+                        //////////////////////////////////////////////////
+
+                        FadeTransition(
+                          opacity: _textOpacity,
+                          child: const Column(
+                            children: [
+                              Text(
+                                'NEW DISCIPLES',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 38,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+
+                              SizedBox(height: 18),
+
+                              Text(
+                                'Show your talent.\nInspire the world.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 17,
+                                  height: 1.7,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
-                          child: Center(
-                            child: Image.asset(
-                              "assets/icon/icon.png",
-                              errorBuilder: (
-                                  context,
-                                  error,
-                                  stackTrace,
-                                  ) {
-                                return Text(
-                                  error.toString(),
-                                );
-                              },
-                            )
-                          ),
                         ),
-                      ),
-
-                      const SizedBox(height: 45),
-
-                      ////////////////////////////////////////////////////
-                      /// TEXT
-                      ////////////////////////////////////////////////////
-
-                      FadeTransition(
-                        opacity: _textOpacity,
-                        child: const Column(
-                          children: [
-                            Text(
-                              "NEW DISCIPLES",
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 38,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 2,
-                              ),
-                            ),
-
-                            SizedBox(height: 18),
-
-                            Text(
-                              "Show your talent.\nInspire the world.",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.black87,
-                                fontSize: 17,
-                                height: 1.7,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
 
                 ////////////////////////////////////////////////////////
-                /// LOADER
+                /// LOADING INDICATOR
                 ////////////////////////////////////////////////////////
 
                 const Positioned(
                   bottom: 50,
                   left: 0,
                   right: 0,
-                  child: Center(
-                    child: SizedBox(
-                      height: 28,
-                      width: 28,
-                      child: CircularProgressIndicator(
-                        color: Colors.black,
-                        strokeWidth: 3,
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 28,
+                        width: 28,
+                        child: CircularProgressIndicator(
+                          color: Colors.black,
+                          strokeWidth: 3,
+                        ),
                       ),
-                    ),
+                      SizedBox(height: 12),
+                      Text(
+                        'Loading...',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -319,7 +421,7 @@ class WelcomeScreen extends StatelessWidget {
       body: Stack(
         children: [
           ////////////////////////////////////////////////////////////
-          /// BACKGROUND GLOW
+          /// TOP BACKGROUND GLOW
           ////////////////////////////////////////////////////////////
 
           Positioned(
@@ -334,6 +436,10 @@ class WelcomeScreen extends StatelessWidget {
               ),
             ),
           ),
+
+          ////////////////////////////////////////////////////////////
+          /// BOTTOM BACKGROUND GLOW
+          ////////////////////////////////////////////////////////////
 
           Positioned(
             bottom: -120,
@@ -354,7 +460,9 @@ class WelcomeScreen extends StatelessWidget {
 
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 28,
+              ),
               child: Column(
                 children: [
                   const Spacer(),
@@ -376,7 +484,8 @@ class WelcomeScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(42),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFFC107).withOpacity(0.35),
+                          color:
+                          const Color(0xFFFFC107).withOpacity(0.35),
                           blurRadius: 35,
                           spreadRadius: 3,
                           offset: const Offset(0, 18),
@@ -391,10 +500,21 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                       child: Center(
                         child: Image.asset(
-                          "assets/icon/icon.png",
+                          'assets/icon/icon.png',
                           width: 105,
                           height: 105,
                           fit: BoxFit.contain,
+                          errorBuilder: (
+                              context,
+                              error,
+                              stackTrace,
+                              ) {
+                            return const Icon(
+                              Icons.auto_awesome,
+                              size: 65,
+                              color: Color(0xFFFFC107),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -416,7 +536,7 @@ class WelcomeScreen extends StatelessWidget {
                       ).createShader(bounds);
                     },
                     child: const Text(
-                      "NEW DISCIPLES",
+                      'NEW DISCIPLES',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white,
@@ -429,8 +549,13 @@ class WelcomeScreen extends StatelessWidget {
 
                   const SizedBox(height: 20),
 
+                  //////////////////////////////////////////////////////
+                  /// DESCRIPTION
+                  //////////////////////////////////////////////////////
+
                   const Text(
-                    "A live reality competition platform\nwhere talents rise and champions emerge.",
+                    'A live reality competition platform\n'
+                        'where talents rise and champions emerge.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white70,
@@ -447,7 +572,7 @@ class WelcomeScreen extends StatelessWidget {
                   //////////////////////////////////////////////////////
 
                   buildPremiumButton(
-                    title: "LOGIN",
+                    title: 'LOGIN',
                     isPrimary: true,
                     onTap: () {
                       Navigator.push(
@@ -466,7 +591,7 @@ class WelcomeScreen extends StatelessWidget {
                   //////////////////////////////////////////////////////
 
                   buildPremiumButton(
-                    title: "CREATE ACCOUNT",
+                    title: 'CREATE ACCOUNT',
                     isPrimary: false,
                     onTap: () {
                       Navigator.push(
@@ -502,8 +627,11 @@ class WelcomeScreen extends StatelessWidget {
       height: 64,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-          isPrimary ? const Color(0xFFFFC107) : const Color(0xFF161B22),
+          backgroundColor: isPrimary
+              ? const Color(0xFFFFC107)
+              : const Color(0xFF161B22),
+          foregroundColor:
+          isPrimary ? Colors.black : Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(22),
@@ -518,7 +646,8 @@ class WelcomeScreen extends StatelessWidget {
         child: Text(
           title,
           style: TextStyle(
-            color: isPrimary ? Colors.black : Colors.white,
+            color:
+            isPrimary ? Colors.black : Colors.white,
             fontSize: 17,
             fontWeight: FontWeight.w900,
             letterSpacing: 1,
