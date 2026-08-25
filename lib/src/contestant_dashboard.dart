@@ -39,17 +39,17 @@ class _ContestantDashboardState extends State<ContestantDashboard> {
         userData: widget.userData,
       ),
 
-      VotesScreen(
-        userData: widget.userData,
-      ),
+    ///  VotesScreen(
+    ///    userData: widget.userData,
+      ///   ),
 
-      ReadinessProfileScreen(
-        userData: widget.userData,
-      ),
+    ///   ReadinessProfileScreen(
+    ///   userData: widget.userData,
+      ///   ),
 
-      ReadinessLeaderboardScreen(
-        userData: widget.userData,
-      ),
+    ///   ReadinessLeaderboardScreen(
+    ///    userData: widget.userData,
+      ///   ),
 
       ProfileScreen(
         userData: widget.userData,
@@ -149,43 +149,43 @@ class _ContestantDashboardState extends State<ContestantDashboard> {
                 /// VOTES
                 ////////////////////////////////////////////////////
 
-                BottomNavigationBarItem(
-                  icon: Icon(
-                    Icons.how_to_vote_outlined,
-                  ),
-                  activeIcon: Icon(
-                    Icons.how_to_vote_rounded,
-                  ),
-                  label: "Votes",
-                ),
+              ///  BottomNavigationBarItem(
+            ///      icon: Icon(
+              ///      Icons.how_to_vote_outlined,
+                ///     ),
+              ///   activeIcon: Icon(
+              ///      Icons.how_to_vote_rounded,
+                ///     ),
+                ///      label: "Votes",
+           // ///     ),
 
                 ////////////////////////////////////////////////////
                 /// READINESS
                 ////////////////////////////////////////////////////
 
-                BottomNavigationBarItem(
-                  icon: Icon(
-                    Icons.insights_outlined,
-                  ),
-                  activeIcon: Icon(
-                    Icons.insights_rounded,
-                  ),
-                  label: "Readiness",
-                ),
+              ///    BottomNavigationBarItem(
+              ///     icon: Icon(
+              ///        Icons.insights_outlined,
+              ///       ),
+              ///      activeIcon: Icon(
+              ///        Icons.insights_rounded,
+              ///      ),
+              ///     label: "Readiness",
+                ///   ),
 
                 ////////////////////////////////////////////////////
                 /// LEADERBOARD
                 ////////////////////////////////////////////////////
 
-                BottomNavigationBarItem(
-                  icon: Icon(
-                    Icons.leaderboard_outlined,
-                  ),
-                  activeIcon: Icon(
-                    Icons.leaderboard_rounded,
-                  ),
-                  label: "Ranks",
-                ),
+              ///    BottomNavigationBarItem(
+              ///    icon: Icon(
+              ///     Icons.leaderboard_outlined,
+              ///    ),
+              ///    activeIcon: Icon(
+              ///       Icons.leaderboard_rounded,
+              ///     ),
+              ///    label: "Ranks",
+                ///     ),
 
                 ////////////////////////////////////////////////////
                 /// PROFILE
