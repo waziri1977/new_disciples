@@ -2,7 +2,7 @@ name: NewDisciples
 description: "New Disciples"
 publish_to: 'none'
 #version: 1.0.5+6
-version: 1.0.5+6
+version: 1.0.5+7
 
 environment:
   sdk: ^3.11.4
